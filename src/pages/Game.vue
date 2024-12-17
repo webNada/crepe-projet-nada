@@ -8,14 +8,13 @@ import Navbar from "../components/Navbar.vue";
 import { ref, onMounted } from 'vue'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Tween, Easing, update } from "three/addons/libs/tween.module.js"
-import * as THREE from 'three';
+import * as THREE from "three";
 import { language } from "../languages";
 import { store } from '../store.js'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const canvas = ref(null)
 const version = ref(0)
-
-
 
 function changeLanguage() {
     if (store.current_language === "fr") {
@@ -36,9 +35,7 @@ const solving = ref(false)
 const can_solve = ref(false)
 //const flipping = ref(false)
 
-
 let raycaster;
-
 
 const old_group_position_y = ref(0)
 let clicked_id = undefined
@@ -50,12 +47,8 @@ let controls;
 
 let won = false
 
-
 const pointer = new THREE.Vector2(Infinity, Infinity);
 const group = new THREE.Group();
-
-
-
 
 let crepes = []
 let table = []
@@ -65,11 +58,11 @@ raycaster = new THREE.Raycaster();
 
 onMounted(() => {
     try {
-      
-        // if (!localStorage.getItem("minimum_recod_flips")) {
-        //     localStorage.setItem("minimum_recod_flips", 1000);
+
+        // if (!localStorage.getItem("minimum_record_flips")) {
+        //     localStorage.setItem("minimum_record_flips", 1000);
         // }
-        // score.value = localStorage.getItem("minimum_recod_flips")
+        // score.value = localStorage.getItem("minimum_record_flips")
         scene = new THREE.Scene()
         scene.background = new THREE.Color('gainsboro');
         light = new THREE.DirectionalLight('white', 1);
@@ -92,7 +85,42 @@ onMounted(() => {
         controls = new OrbitControls(camera, renderer.domElement);
 
         controls.enableDamping = true;
-        initCrepes()
+
+      const geometry = new THREE.BoxGeometry( 15, 10, 8 ); //boîte en bois au dessous
+      const load = new THREE.TextureLoader();
+      let material = new THREE.MeshBasicMaterial({
+        map: load.load("dist/assets/textures/boxtexture.png") //texture de la boite
+      });
+      let top = new THREE.MeshBasicMaterial({
+        map: load.load("dist/assets/textures/top.jpg") //texture de la boite
+      });
+      const cube = new THREE.Mesh( geometry, material );
+      cube.position.y = - 5.7;
+      //scene.add( cube );
+
+      var object = new THREE.Mesh(
+          new THREE.BoxGeometry( 15, 10, 8 ),
+          [
+            material,
+            material,
+            top,// face du haut
+            material,
+            material,
+            material,
+          ]
+      );
+      object.position.y = - 5.7;
+      scene.add( object );
+      let loader = new GLTFLoader();
+      loader.load( "dist/assets/white_ceramic_plate/scene.gltf", function ( gltf ) {
+        gltf.scene.scale.set(12 * gltf.scene.scale.x, 12 * gltf.scene.scale.y, 12 * gltf.scene.scale.z)
+        gltf.scene.position.y = - 0.6;
+        scene.add( gltf.scene );
+      }, undefined, function ( error ) {
+        console.error( error );
+      } );
+
+      initCrepes()
         animate()
     } catch (error) {
 
@@ -159,7 +187,7 @@ function randomCrepe() {
 
 const clicked_restart = ref(false)
 function restartCrepes() {
-    
+
     if (clicked_restart.value) return
     clicked_restart.value = true
     while (group.children.length) {
@@ -196,11 +224,7 @@ function restartCrepes() {
 
     number_of_flips.value = 0
 
-    if (!ok) {
-        can_solve.value = true
-    } else {
-        can_solve.value = false
-    }
+    can_solve.value = !ok;
     won = false
     solving.value = false
     // console.log(table);
@@ -215,56 +239,37 @@ function initCrepes() {
     restart_table = []
     table = []
     number_of_flips.value = 0
+
     if (crepes.length > 0) {
         for (let i = 0; i < crepes.length; i++) {
             crepes[i].geometry.dispose()
             scene.remove(crepes[i])
         }
     }
-
     crepes = []
+    // Initialisation des couleurs et textures des crèpes
+    const load = new THREE.TextureLoader();
+    let couleur = []
+    let impair = new THREE.MeshBasicMaterial({ map : load.load("dist/assets/textures/crepetexture.png") }); //texture boisee 
+    let impair_side = new THREE.MeshLambertMaterial( {color: 0xE5B88E});
+    let pair = new THREE.MeshBasicMaterial({ map : load.load("dist/assets/textures/Oakcrepe.png") });
+    let pair_side = new THREE.MeshBasicMaterial({color : 0x494134});
+
+    if (version === 1 ){ let bottom = new THREE.MeshBasicMaterial({color : 'black'}); } // face "brulée" pour la version 1
 
     for (let i = numbers_of_crepes.value - 1; i >= 0; i--) {
-        let color = new THREE.Color().setHSL(i / numbers_of_crepes.value, i % 2, i % 2 ? 0.5 : 1);
-        let geometry = new THREE.CylinderGeometry(1.2 - i / numbers_of_crepes.value / 1,
-            1.2 - i / numbers_of_crepes.value / 1, 0.18)
+        let geometry = new THREE.CylinderGeometry(1.2 - i / numbers_of_crepes.value, 1.2 - i / numbers_of_crepes.value, 0.18)
+        
+        if (i % 2 === 1) { couleur[impair_side, impair, impair] }
+        else { couleur = [pair_side, pair, pair]}
+        if (version === 1) {
+            console.log("v2 " )
+            couleur[2] = bottom }
 
-        let disc
-
-        if (version.value === 1) {
-
-            const positionAttribute = geometry.getAttribute('position');
-            const colorAttribute = new THREE.Float32BufferAttribute(positionAttribute.count * 3, 3);
-
-            for (let j = 0; j < positionAttribute.count; j += 1) {
-
-                let vertexColor = new THREE.Color();
-                if (j >= positionAttribute.count - 196 / 3) {
-                    vertexColor.setRGB(0, 0, 0); // Black color for the bottom side
-
-                } else {
-                    vertexColor.copy(color); 
-                }
-                colorAttribute.setXYZ(j, vertexColor.r, vertexColor.g, vertexColor.b);
-            }
-
-            geometry.setAttribute('color', colorAttribute);
-            disc = new THREE.Mesh(
-                geometry,
-                new THREE.MeshLambertMaterial({
-                    vertexColors: true
-                }));
-        } else {
-
-            disc = new THREE.Mesh(
-                geometry,
-                new THREE.MeshLambertMaterial({
-                    color: color,
-                }));
-        }
-
+        let disc = new THREE.Mesh( geometry, couleur );
 
         disc.position.y = 0.2 * i - 0.5;
+
         table.push({ id: disc.id, side: 0 })
         restart_table.push({ id: disc.id, y: disc.position.y, side: 0 })
         crepes.push(disc);
@@ -284,7 +289,7 @@ function addCrepe() {
             crepes[i].geometry.dispose()
             scene.remove(crepes[i])
         }
-        
+
         table = []
         crepes = []
         crepes.length = 0
@@ -303,7 +308,7 @@ function removeCrepe() {
             crepes[i].geometry.dispose()
             scene.remove(crepes[i])
         }
-     
+
         table = []
         crepes = []
         crepes.length = 0
@@ -312,10 +317,7 @@ function removeCrepe() {
 
         initCrepes()
     }
-
 }
-
-
 
 document.addEventListener('mousedown', (event) => {
 
@@ -393,11 +395,9 @@ document.addEventListener('mousedown', (event) => {
             .to({ z: Math.PI }, 600)
             .onComplete(() => {
 
-
                 number_of_flips.value += 1
 
                 solving.value = false
-
 
                 let low = lowest_crepe.value
                 let k = 0
@@ -422,11 +422,7 @@ document.addEventListener('mousedown', (event) => {
                     }
                 }
 
-                if (won) {
-                    can_solve.value = false
-                } else {
-                    can_solve.value = true
-                }
+                can_solve.value = !won;
                 if (version.value === 1) {
                     if (won) {
 
@@ -452,8 +448,6 @@ document.addEventListener('mousedown', (event) => {
     }
 
 }, false);
-
-
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -519,7 +513,6 @@ function delay(milliseconds) {
 
 // }
 
-
 async function solveAnimation(id) {
     while (group.children.length) {
         scene.attach(group.children[0]);
@@ -544,7 +537,6 @@ async function solveAnimation(id) {
 
     let old_y = group.position.y
 
-
     new Tween(group.position)
         .to({ y: group.position.y + 1 }, 100)
         .easing(Easing.Quadratic.Out)
@@ -559,7 +551,6 @@ async function solveAnimation(id) {
     id = -1
 }
 
-
 // This is the most difficult part of code
 // To solve crepes i use recursion
 // version 0 is the default one
@@ -570,7 +561,7 @@ async function solveAnimation(id) {
 
 // let's say if an array is [15, 17, 16, 18] when you flip the index 1(17) you are flipping also all crepes above
 // so it will be [17, 15, 16, 18] then you need to place it to index 2(in place of 16) so you flip crepe 16
-// it becomes [16, 15, 17, 18] and now you need to flip crepe at index 1(15) to place it at beggining 
+// it becomes [16, 15, 17, 18] and now you need to flip crepe at index 1(15) to place it at beggining
 
 // max crepe is starting at highest and each time it is decreasing say from 18 to 17 etc. also the end index k is incrementing from 0 to +1 in order get wanted position of crepe
 async function solve(max, k) {
@@ -621,7 +612,7 @@ async function solve(max, k) {
             if (version.value === 1) {
                 if (table[0].side === 1) {
                     //    console.log(max, i, k, table, "flip the top");
-                    solveAnimation(table[0].id)
+                    await solveAnimation(table[0].id)
                     await delay(600)
                     table[i].side = (table[i].side === 0) ? 1 : 0
                     console.log("done");
@@ -637,11 +628,11 @@ async function solve(max, k) {
                 table[0] = table[1]
                 table[1] = tmp
 
-                solveAnimation(table[0].id)
+                await solveAnimation(table[0].id)
                 await delay(600)
                 table[0] = (table[0] === 1) ? 0 : 1
                 table[1] = (table[1] === 1) ? 0 : 1
-                
+
                 console.log("done");
                 can_solve.value = false
                 solving.value = false
@@ -654,7 +645,7 @@ async function solve(max, k) {
 
             //white side crepe flip it to black side because when you going to flip where it position has to be, it will be flipped correctly(black side down)
             if (version.value === 1 && table[i].side === 0) {
-                solveAnimation(table[0].id)
+                await solveAnimation(table[0].id)
                 await delay(600)
                 table[0].side = 1
             }
@@ -665,7 +656,7 @@ async function solve(max, k) {
                 table[j] = table[table.length - 1 - j - k]
                 table[table.length - 1 - j - k] = tmp
             }
-            solveAnimation(table[i].id)
+            await solveAnimation(table[i].id)
             await delay(600)
             //swap black side to white side and vice versa
             if (version.value === 1) {
@@ -673,37 +664,34 @@ async function solve(max, k) {
                     table[j].side = (table[j].side === 0) ? 1 : 0
                 }
             }
-
             //  console.log(max, i, k, table, " position 0");
-          
+
         }
     }
 
     // our crepe is not at begging means in between till i/2
     // we need to place it to begging of array example we look for a crepe 18 [15, 16, 18, 17] we swap all from that i to begging [18, 16, 15, 17]
-    
+
     else if (i > 0 && (table.length - 1 - k) !== i) {
         //  console.log(max, i, k, table, "between");
         // swap all positions till i
         for (let j = 0; j < i / 2; j++) {
-
             let tmp = table[j]
             table[j] = table[i - j]
             table[i - j] = tmp
 
         }
 
-        solveAnimation(max)
+        await solveAnimation(max)
         await delay(600)
         // swap all colors till i + 1
         if (version.value === 1) {
             for (let j = 0; j < i + 1; j++) {
                 table[j].side = (table[j].side === 0) ? 1 : 0
             }
-
         }
 
-    
+
          // because it is now at begging we need to redo for it
         max += 1
         k--
@@ -711,8 +699,8 @@ async function solve(max, k) {
 
     //special case for black side crepe if it is at it position you need to flip to begging else continue
     else if (i === table.length - 1 - k && version.value === 1 && table[i].side === 1) {
-            
-            solveAnimation(table[i].id)
+
+            await solveAnimation(table[i].id)
             await delay(600)
             // again swap all crepes from current to begging
             for (let j = 0; j < (table.length - k) / 2; j++) {
@@ -727,7 +715,7 @@ async function solve(max, k) {
             for (let j = 0; j < (table.length - k); j++) {
                     table[j].side = (table[j].side === 0) ? 1 : 0
             }
-           
+
             // because it is now at begging we need to redo for it
             max += 1
             k--
@@ -735,7 +723,7 @@ async function solve(max, k) {
     k++
     max -= 1
     await delay(100)
-    solve(max, k)
+    await solve(max, k)
 }
 
 function runRecursiveSolve() {
@@ -743,7 +731,7 @@ function runRecursiveSolve() {
     solve(highest_crepe.value, 0)
 }
 
-function animate(t) {
+function animate() {
     camera.updateMatrixWorld();
     controls.update();
     update()
@@ -751,7 +739,6 @@ function animate(t) {
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
 }
-
 
 function alertInfo() {
     if (info.value) {
@@ -808,7 +795,6 @@ const toggleConfetti = () => {
         </div>
     </div>
 
-
     <div id="winInfo" class="absolute -z-10 opacity-0">
         <!-- Confetti animation code  -->
         <!-- https://codepen.io/amardeeprai/pen/YzNLEav -->
@@ -824,9 +810,6 @@ const toggleConfetti = () => {
         </div>
         <p class="bg-white p-2 text-xl w-auto h-auto">{{ language[store.current_language].winMessage }}</p>
     </div>
-
-
-
 
     <div id="actions_group" class="absolute z-10 flex flex-wrap w-full justify-center items-center bottom-0">
         <button @click="changeLanguage" class="rounded p-2 m-2 bg-gray-900 text-white font-bold text-xl">{{
@@ -855,30 +838,29 @@ const toggleConfetti = () => {
             class="flex justify-end rounded p-2 m-2 bg-blue-500 text-black font-bold text-xl"
             @click.prevent="runRecursiveSolve">{{ language[store.current_language].solve
             }}</button>
-           <a href="#/" class="rounded px-5 p-2 m-2 bg-amber-400 text-black font-bold text-xl">{{ language[store.current_language].back }}</a>
+           <a href="#" class="rounded px-5 p-2 m-2 bg-amber-400 text-black font-bold text-xl">{{ language[store.current_language].back }}</a>
     </div>
- 
+
     <canvas class="z-0" ref="canvas"></canvas>
 
 </template>
-
 <style setup>
 
     html,
-    body{
-    overscroll-behavior-x: none;
-    overscroll-behavior-y: none;
-    -webkit-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    } 
+    body {
+      overscroll-behavior-x: none;
+      overscroll-behavior-y: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
 
     body {
-    margin: 0;
-    padding: 0;
-    position: fixed;
-    top: 0;
-    left: 0;
+      margin: 0;
+      padding: 0;
+      position: fixed;
+      top: 0;
+      left: 0;
     }
 
 </style>
