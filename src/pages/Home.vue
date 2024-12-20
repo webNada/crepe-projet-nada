@@ -1,5 +1,5 @@
 <template>
-       <Navbar class="fixed p-2 w-full bg-white" />
+    <Navbar class="fixed p-2 w-full bg-white" />
     <div class="flex justify-center py-14 w-screen h-screen overflow-y-scroll">
         <div>
             <button @click="changeLanguage" class="rounded p-2 m-2 bg-gray-900 text-white font-bold text-xl">{{

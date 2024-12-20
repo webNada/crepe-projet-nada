@@ -33,4 +33,6 @@ body {
   opacity: 10;
   cursor: not-allowed;
 }
-
+#alertInfo {
+  transition: opacity 0.5s ease-in-out;
+}

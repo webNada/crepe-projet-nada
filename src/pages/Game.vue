@@ -15,6 +15,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const canvas = ref(null)
 const version = ref(0)
+// version 0 is the classic game and version 1 is the one that adds a black side on each crepe
+// and where these black sides all have to be down in order to win  
 
 function changeLanguage() {
     if (store.current_language === "fr") {
@@ -24,109 +26,108 @@ function changeLanguage() {
     }
 }
 
-const info = ref(false)
 
+//Initialization of all state variables 
+const info = ref(false)
 const number_of_flips = ref(0)
 const numbers_of_crepes = ref(4)
 const lowest_crepe = ref(0)
 const highest_crepe = ref(0)
-// const score = ref(0)
 const solving = ref(false)
 const can_solve = ref(false)
-//const flipping = ref(false)
-
-let raycaster;
-
+// const flipping = ref(false)
+// const score = ref(0)
 const old_group_position_y = ref(0)
 let clicked_id = undefined
-let light
+let won = false
+const clicked_restart = ref(false)
+
+
+// Three.js Parameters
+let raycaster= new THREE.Raycaster();
+let light;
 let scene;
 let camera;
 let renderer;
 let controls;
-
-let won = false
-
-const pointer = new THREE.Vector2(Infinity, Infinity);
+const pointer = new THREE.Vector2(Infinity, Infinity); // gives the offset from Raycaster to the Camera
 const group = new THREE.Group();
+const load = new THREE.TextureLoader(); //Loads the textures for the crepes
 
 let crepes = []
 let table = []
 let restart_table = []
 
-raycaster = new THREE.Raycaster();
-
 onMounted(() => {
     try {
+          //////////////////////////////
+         // Creation of the 3D scene //
+        //////////////////////////////
 
-        // if (!localStorage.getItem("minimum_record_flips")) {
-        //     localStorage.setItem("minimum_record_flips", 1000);
-        // }
-        // score.value = localStorage.getItem("minimum_record_flips")
         scene = new THREE.Scene()
         scene.background = new THREE.Color('gainsboro');
+        let ambientLight = new THREE.AmbientLight('beige', 0.5);
         light = new THREE.DirectionalLight('white', 1);
         light.position.set(1, 1, 1);
         scene.add(light)
-
         scene.add(group)
-        let ambientLight = new THREE.AmbientLight('white', 0.5);
+        
         scene.add(ambientLight);
         renderer = new THREE.WebGLRenderer({ canvas: canvas.value, antialias: true, alpha: true })
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
 
         camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight);
-
         camera.position.set(0, 2, 10);
-
         camera.lookAt(scene.position);
-
         controls = new OrbitControls(camera, renderer.domElement);
+        controls.minDistance = 5;
+        controls.maxDistance = 35; 
 
         controls.enableDamping = true;
 
-      const geometry = new THREE.BoxGeometry( 15, 10, 8 ); //boîte en bois au dessous
-      const load = new THREE.TextureLoader();
-      let material = new THREE.MeshBasicMaterial({
-        map: load.load("dist/assets/textures/boxtexture.png") //texture de la boite
-      });
-      let top = new THREE.MeshBasicMaterial({
-        map: load.load("dist/assets/textures/top.jpg") //texture de la boite
-      });
-      const cube = new THREE.Mesh( geometry, material );
-      cube.position.y = - 5.7;
-      //scene.add( cube );
+        
+          ////////////////////////////////////////////////
+         // Creation of the area underneath the crepes //
+        ////////////////////////////////////////////////
 
-      var object = new THREE.Mesh(
-          new THREE.BoxGeometry( 15, 10, 8 ),
-          [
-            material,
-            material,
-            top,// face du haut
-            material,
-            material,
-            material,
-          ]
-      );
-      object.position.y = - 5.7;
-      scene.add( object );
-      let loader = new GLTFLoader();
-      loader.load( "dist/assets/white_ceramic_plate/scene.gltf", function ( gltf ) {
-        gltf.scene.scale.set(12 * gltf.scene.scale.x, 12 * gltf.scene.scale.y, 12 * gltf.scene.scale.z)
-        gltf.scene.position.y = - 0.6;
-        scene.add( gltf.scene );
-      }, undefined, function ( error ) {
-        console.error( error );
-      } );
+        // Source of the textures: Terra Numerica and freepik.com 
+        // Editing realised by myself
+        // the next 17 lines can be removed if the framework is done and offers a support for the crepes
+        const geometry = new THREE.BoxGeometry( 15, 10, 8 );
+        let top = new THREE.MeshBasicMaterial({ map: load.load("dist/assets/textures/top.jpg") }); // texture of the upper side of the box
+        let material = new THREE.MeshBasicMaterial({ map: load.load("dist/assets/textures/boxtexture.png") }); // the rest of the box
 
-      initCrepes()
-        animate()
+        var object = new THREE.Mesh(
+            new THREE.BoxGeometry( 15, 10, 8 ),
+            [
+                material,   // right side
+                material,   // left side
+                top,        // top side
+                material,   // bottom side
+                material,   // front side
+                material,   // back side
+            ]
+        );
+
+        object.position.y = - 5.2;
+        scene.add( object );
+        let loader = new GLTFLoader();
+        // source of the white plate: https://sketchfab.com/3d-models/white-ceramic-plate-4036111d2c5c47bab2320202d5e9a2a4
+        loader.load( "dist/assets/white_ceramic_plate/scene.gltf", function ( gltf ) {
+            gltf.scene.scale.set(12 * gltf.scene.scale.x, 12 * gltf.scene.scale.y, 12 * gltf.scene.scale.z)
+            gltf.scene.position.y = -0.1;
+            scene.add( gltf.scene );
+        }, undefined, function ( error ) {
+            console.error( error );
+        } );
+
+        initCrepes()
+            animate()
     } catch (error) {
 
     }
 })
-
 
 //The Fisher-Yates algorith https://dev.to/codebubb/how-to-shuffle-an-array-in-javascript-2ikj
 const shuffleArray = array => {
@@ -137,17 +138,14 @@ const shuffleArray = array => {
         array[j] = temp;
     }
 }
-//////////////////////////////////////////////
 
 
 function randomCrepe() {
+    number_of_flips.value = 0
+    solving.value = true
     while (group.children.length) {
         scene.attach(group.children[0]);
     }
-    number_of_flips.value = 0
-    // localStorage.setItem("minimum_recod_flips", 1000)
-    // score.value = localStorage.getItem("minimum_recod_flips")
-    solving.value = true
 
     for (let i = 0; i < crepes.length; i++) {
         crepes[i].rotation.set(0, 0, 0)
@@ -155,37 +153,31 @@ function randomCrepe() {
 
     shuffleArray(crepes)
     table = []
-    if (version.value === 1) {
-        for (let i = crepes.length - 1; i >= 0; i--) {
-            table.push({ id: crepes[i].id, side: Math.floor(Math.random() * 2) })
-        }
-    } else {
-        for (let i = crepes.length - 1; i >= 0; i--) {
-            table.push({ id: crepes[i].id, side: 0 })
-        }
-    }
-
-    restart_table = []
+    let side = 0
 
     for (let i = crepes.length - 1; i >= 0; i--) {
-        crepes[i].position.y = 0.2 * i - 0.5;
-        restart_table.push({ id: crepes[i].id, y: crepes[i].position.y, side: table[i].side })
-    }
-
-    for (let i = 0; i < crepes.length; i++) {
-
-        if (table[i].side === 1) {
-            crepes[i].rotation.x += (Math.PI / 2) * 2
+        if (version.value === 1) {
+            side =  Math.floor(Math.random() * 2)
         }
-        table[i].side = restart_table[i].side
+        table.push({ id: crepes[i].id, side: side})
+    }   
+
+    restart_table = []
+    
+    for (let i = crepes.length - 1, j = 0; i >= 0; i-- , j++) {
+        crepes[i].position.y = 0.2 * i;
+        restart_table.push({ id: crepes[i].id, y: crepes[i].position.y, side: table[i].side })
+
+        if (table[j].side === 1) {
+            crepes[j].rotation.x += (Math.PI / 2) * 2
+        }
+        table[j].side = restart_table[j].side
     }
+
     solving.value = false
     can_solve.value = true
-    // console.log(table);
-    // console.log(restart_table);
 }
 
-const clicked_restart = ref(false)
 function restartCrepes() {
 
     if (clicked_restart.value) return
@@ -218,7 +210,6 @@ function restartCrepes() {
                 }
                 crepes[j].position.set(crepes[j].position.x, restart_table[i].y, crepes[j].position.z)
             }
-
         }
     }
 
@@ -227,18 +218,12 @@ function restartCrepes() {
     can_solve.value = !ok;
     won = false
     solving.value = false
-    // console.log(table);
-    // console.log(restart_table);
 }
 
+
+//initCrepes() Creates a list of crepes based on the variable 'number_of_crepes' then adds them to the Three.js scene.
+//Depending on the parity of a crepe's position in the list and the game version, it does not have the same textures.
 function initCrepes() {
-    // score.value = 1000
-    // localStorage.getItem("minimum_recod_flips", score.value)
-    won = false
-    group.clear()
-    restart_table = []
-    table = []
-    number_of_flips.value = 0
 
     if (crepes.length > 0) {
         for (let i = 0; i < crepes.length; i++) {
@@ -246,30 +231,39 @@ function initCrepes() {
             scene.remove(crepes[i])
         }
     }
+
+    won = false
+    number_of_flips.value = 0
+    group.clear()
+    restart_table = []
+    table = []
     crepes = []
-    // Initialisation des couleurs et textures des crèpes
-    const load = new THREE.TextureLoader();
-    let couleur = []
-    let impair = new THREE.MeshBasicMaterial({ map : load.load("dist/assets/textures/crepetexture.png") }); //texture boisee 
+
+    // Initialization of crepe colors and textures
+    let couleur = []    // Will be used to hold the textures of the different faces of the crepe represented by a cylinder
+
+    // textures:
+    let impair = new THREE.MeshBasicMaterial({ map : load.load("dist/assets/textures/crepetexture.png") });
     let impair_side = new THREE.MeshLambertMaterial( {color: 0xE5B88E});
     let pair = new THREE.MeshBasicMaterial({ map : load.load("dist/assets/textures/Oakcrepe.png") });
-    let pair_side = new THREE.MeshBasicMaterial({color : 0x494134});
+    let pair_side = new THREE.MeshLambertMaterial({color : 0x494134});
+    let bottom
 
-    if (version === 1 ){ let bottom = new THREE.MeshBasicMaterial({color : 'black'}); } // face "brulée" pour la version 1
+    if (version.value === 1 ){ bottom = new THREE.MeshLambertMaterial({color : 'black'}); }
 
     for (let i = numbers_of_crepes.value - 1; i >= 0; i--) {
         let geometry = new THREE.CylinderGeometry(1.2 - i / numbers_of_crepes.value, 1.2 - i / numbers_of_crepes.value, 0.18)
-        
-        if (i % 2 === 1) { couleur[impair_side, impair, impair] }
-        else { couleur = [pair_side, pair, pair]}
-        if (version === 1) {
-            console.log("v2 " )
-            couleur[2] = bottom }
 
+        // Depending on the parity of i and the version of the game, we give it the correct textures
+        if (i % 2 == 1) { couleur = [impair_side, impair] }
+        else { couleur = [pair_side, pair] }
+
+        if (version.value === 1) { couleur.push(bottom) }
+        else { couleur.push(couleur[1]) }
+
+        // creation of the crepe and adding it in different arrays
         let disc = new THREE.Mesh( geometry, couleur );
-
-        disc.position.y = 0.2 * i - 0.5;
-
+        disc.position.y = 0.2 * i;
         table.push({ id: disc.id, side: 0 })
         restart_table.push({ id: disc.id, y: disc.position.y, side: 0 })
         crepes.push(disc);
@@ -281,43 +275,25 @@ function initCrepes() {
 
 }
 
-function addCrepe() {
+// editCrepe() is responsible for clearing the arrays of old crepes as well as the 3D scene.
+// It increments or decrements the maximum number of crepes by n depending on the sign of n,
+// then calls initCrepes() to recreate them with one additional crepe.
+function editCrepe(n) {
 
-    if (crepes.length < 20) {
-        old_group_position_y.value = null
-        for (let i = 0; i < crepes.length; i++) {
-            crepes[i].geometry.dispose()
-            scene.remove(crepes[i])
-        }
-
-        table = []
-        crepes = []
-        crepes.length = 0
-        highest_crepe.value += 1
-        numbers_of_crepes.value += 1
-
-        initCrepes()
+    old_group_position_y.value = null
+    for (let i = 0; i < crepes.length; i++) {
+        crepes[i].geometry.dispose()
+        scene.remove(crepes[i])
     }
+
+    table = []
+    crepes = []
+    crepes.length = 0
+    highest_crepe.value += n
+    numbers_of_crepes.value += n
+    initCrepes()
 }
 
-function removeCrepe() {
-
-    if (crepes.length > 4) {
-        old_group_position_y.value = null
-        for (let i = 0; i < crepes.length; i++) {
-            crepes[i].geometry.dispose()
-            scene.remove(crepes[i])
-        }
-
-        table = []
-        crepes = []
-        crepes.length = 0
-        numbers_of_crepes.value -= 1
-        highest_crepe.value -= 1
-
-        initCrepes()
-    }
-}
 
 document.addEventListener('mousedown', (event) => {
 
@@ -338,27 +314,17 @@ document.addEventListener('mousedown', (event) => {
         let y = intersection[0].object.position.y
         clicked_id = intersection[0].object.id
 
-        group.position.y = (0.2 * (numbers_of_crepes.value - 1) - 0.5 + y) / 2;
+        group.position.y = (0.2 * (numbers_of_crepes.value - 1) + y) / 2;
 
         let i = 0
         while (i < crepes.length) {
             if (crepes[i].position.y >= y) {
-
                 group.attach(crepes[i])
             }
             i++
         }
 
         old_group_position_y.value = group.position.y
-
-        // new Tween(group.position)
-        //     .to({ y: group.position.y + 1 }, 300)
-        //     .easing(Easing.Quadratic.Out)
-        //     .onComplete(()=>{
-        //         flipping.value = true
-        //     solving.value = true
-        //     })
-        //     .start();
 
         i = 0
         while (i < table.length) {
@@ -394,11 +360,10 @@ document.addEventListener('mousedown', (event) => {
         new Tween(group.rotation)
             .to({ z: Math.PI }, 600)
             .onComplete(() => {
-
-                number_of_flips.value += 1
-
+                if (i!==0 || version.value===1) {
+                    number_of_flips.value += 1
+                }
                 solving.value = false
-
                 let low = lowest_crepe.value
                 let k = 0
                 won = true
@@ -423,43 +388,24 @@ document.addEventListener('mousedown', (event) => {
                 }
 
                 can_solve.value = !won;
-                if (version.value === 1) {
-                    if (won) {
-
-                        // if (score.value > number_of_flips.value) {
-                        //     score.value = number_of_flips.value
-                        //     localStorage.setItem("minimum_recod_flips", score.value)
-                        // }
-                        alertWon()
-                    }
-                } else {
-                    if (won && i !== 0) {
-
-                        // if (score.value > number_of_flips.value) {
-                        //     score.value = number_of_flips.value
-                        //     localStorage.setItem("minimum_recod_flips", score.value)
-                        // }
-                        alertWon()
-                    }
+                if (won && number_of_flips.value!==0) {
+                    console.log(" victoire ")
+                    alertWon()
                 }
-
             })
             .start()
     }
 
 }, false);
 
-window.addEventListener('resize', () => {
+function handler(){
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-}, false);
+}
 
-window.addEventListener('zoom', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}, false);
+window.addEventListener('resize', () => handler(), false); // revoir et definir limites au zoom/resize
+window.addEventListener('zoom', () => handler(), false);
 
 
 function delay(milliseconds) {
@@ -467,51 +413,6 @@ function delay(milliseconds) {
         setTimeout(resolve, milliseconds);
     });
 }
-
-// function cancelFlip() {
-
-// new Tween(group.position)
-//     .to({ y: old_group_position_y.value }, 300)
-//     .easing(Easing.Quadratic.In)
-//     .onComplete(()=>{
-//         solving.value = false
-//         flipping.value = false
-//     })
-//     .start()
-// }
-
-// async function flip() {
-
-
-//    new Tween(group.rotation)
-//        .to({ z: Math.PI }, 600)
-//        .start()
-//    new Tween(group.position)
-//        .to({ y: old_group_position_y.value }, 1200)
-//        .easing(Easing.Quadratic.In)
-//        .onComplete(() => {
-//            let i = 0
-
-//            while (i < table.length) {
-//                if (table[i] === clicked_id) {
-//                    break
-//                }
-//                i++
-//            }
-
-//            for (let j = 0; j < i / 2; j++) {
-//                let tmp = table[j]
-//                table[j] = table[i - j]
-//                table[i - j] = tmp
-//            }
-//          //  console.log(table);
-//            solving.value = false
-//            can_solve.value = true
-//            flipping.value = false
-//        })
-//        .start()
-
-// }
 
 async function solveAnimation(id) {
     while (group.children.length) {
@@ -524,7 +425,7 @@ async function solveAnimation(id) {
 
     let y = object.position.y
 
-    group.position.y = (0.2 * (numbers_of_crepes.value - 1) - 0.5 + y) / 2;
+    group.position.y = (0.2 * (numbers_of_crepes.value - 1) + y) / 2;
 
     let i = 0
 
@@ -538,7 +439,7 @@ async function solveAnimation(id) {
     let old_y = group.position.y
 
     new Tween(group.position)
-        .to({ y: group.position.y + 1 }, 100)
+        .to({ y: group.position.y + 1.5 }, 100)
         .easing(Easing.Quadratic.Out)
         .chain(new Tween(group.position)
 
@@ -553,22 +454,20 @@ async function solveAnimation(id) {
 
 // This is the most difficult part of code
 // To solve crepes i use recursion
-// version 0 is the default one
-// version 1 is where the crepe has black side
 
 // So you need to sort from lowest crepe at top to highest at bottom they are represent in array as [15, 16, 17, 18] 4 crepes
 // The trick is to place the biggest crepe to top if it is not at it
 
-// let's say if an array is [15, 17, 16, 18] when you flip the index 1(17) you are flipping also all crepes above
-// so it will be [17, 15, 16, 18] then you need to place it to index 2(in place of 16) so you flip crepe 16
-// it becomes [16, 15, 17, 18] and now you need to flip crepe at index 1(15) to place it at beggining
+// let's say if an array is [15, 17, 16, 18] when you flip the index 1 (17) you are flipping also all crepes above
+// so it will be [17, 15, 16, 18] then you need to place it to index 2 (in place of 16) so you flip crepe 16
+// it becomes [16, 15, 17, 18] and now you need to flip crepe at index 1 (15) to place it at beggining
 
-// max crepe is starting at highest and each time it is decreasing say from 18 to 17 etc. also the end index k is incrementing from 0 to +1 in order get wanted position of crepe
+// max crepe is starting at highest and each time it is decreasing say from 18 to 17 etc. also the end index k is incrementing by 1 in order to get the wanted position of the crepe
 async function solve(max, k) {
     solving.value = true
 
     let i = 0
-    // i am looking for a biggest crepe's position
+    // I am looking for the biggest crepe's position (max)
     while (i < table.length) {
         if (table[i].id >= max) {
             max = table[i].id
@@ -577,25 +476,17 @@ async function solve(max, k) {
         i++
     }
     // for default version check if the max crepe is the latest crepe if true you have solved!
-    // for black side version you just check color !
+    // for black side version you just check color (table[x].side === 1)
     if (i === 0 && max === table[i].id && k === table.length - 1) {
-        //   console.log(max, i, k, table, " done 1");
+        let ok = true
         if (version.value === 1) {
-            let ok = true
             for (let ii = 0; ii < table.length; ii++) {
                 if (table[ii].side === 1) {
                     ok = false
                     ii = table.length
                 }
             }
-            if (ok) {
-                can_solve.value = false
-                solving.value = false
-                clicked_restart.value = false
-                console.log("done");
-                return
-            }
-        } else {
+        } if (version.value === 1 && ok || version.value === 0) {
             console.log("done");
             clicked_restart.value = false
             can_solve.value = false
@@ -604,45 +495,36 @@ async function solve(max, k) {
         }
     }
 
-    //when i is 0 means the crepe that we are looking for is at begging of array
+    //when i is 0 means the crepe that we are looking for is at beginning of array
     if (i === 0) {
         // means that the crepe is the latest crepe there are no crepe left so the game is solved!
         if (k === table.length - 1) {
             // black side version you need to flip it
             if (version.value === 1) {
-                if (table[0].side === 1) {
-                    //    console.log(max, i, k, table, "flip the top");
                     await solveAnimation(table[0].id)
                     await delay(600)
+                if (table[0].side === 1) {
+                    //    console.log(max, i, k, table, "flip the top");
                     table[i].side = (table[i].side === 0) ? 1 : 0
-                    console.log("done");
-                    can_solve.value = false
-                    solving.value = false
-                    return
                 }
 
             } else {
 
-                //   console.log(max, i, k, table, "swap index 0 with index 1");
                 let tmp = table[0]
                 table[0] = table[1]
                 table[1] = tmp
 
-                await solveAnimation(table[0].id)
-                await delay(600)
                 table[0] = (table[0] === 1) ? 0 : 1
                 table[1] = (table[1] === 1) ? 0 : 1
-
-                console.log("done");
+            }
+            
                 can_solve.value = false
                 solving.value = false
                 return
-            }
 
         } else {
 
-            //crepe is at begging but there still are crepes that are next max crepes
-
+            //crepe is at the beginning but there still are crepes that are next max crepes
             //white side crepe flip it to black side because when you going to flip where it position has to be, it will be flipped correctly(black side down)
             if (version.value === 1 && table[i].side === 0) {
                 await solveAnimation(table[0].id)
@@ -664,17 +546,14 @@ async function solve(max, k) {
                     table[j].side = (table[j].side === 0) ? 1 : 0
                 }
             }
-            //  console.log(max, i, k, table, " position 0");
-
         }
     }
 
-    // our crepe is not at begging means in between till i/2
-    // we need to place it to begging of array example we look for a crepe 18 [15, 16, 18, 17] we swap all from that i to begging [18, 16, 15, 17]
+    // our crepe is not at beggininng means in between till i/2
+    // we need to place it to the beginning of array example we look for a crepe 18 [15, 16, 18, 17] we swap all from that i to the beginning [18, 16, 15, 17]
 
     else if (i > 0 && (table.length - 1 - k) !== i) {
-        //  console.log(max, i, k, table, "between");
-        // swap all positions till i
+        //  swap all positions till i
         for (let j = 0; j < i / 2; j++) {
             let tmp = table[j]
             table[j] = table[i - j]
@@ -691,18 +570,17 @@ async function solve(max, k) {
             }
         }
 
-
-         // because it is now at begging we need to redo for it
+        // because it is now at the beginning we need to redo for it
         max += 1
         k--
     }
 
-    //special case for black side crepe if it is at it position you need to flip to begging else continue
+    //special case for black side crepe if it is at it position you need to flip to the beginning else continue
     else if (i === table.length - 1 - k && version.value === 1 && table[i].side === 1) {
 
             await solveAnimation(table[i].id)
-            await delay(600)
-            // again swap all crepes from current to begging
+            await delay(600) // if you reduce it, the next animation might start before the first one is finished
+            // again swap all crepes from current to the beginning
             for (let j = 0; j < (table.length - k) / 2; j++) {
 
                 let tmp = table[j]
@@ -716,7 +594,7 @@ async function solve(max, k) {
                     table[j].side = (table[j].side === 0) ? 1 : 0
             }
 
-            // because it is now at begging we need to redo for it
+            // because it is now at the beginning we need to redo for it
             max += 1
             k--
     }
@@ -742,19 +620,14 @@ function animate() {
 
 function alertInfo() {
     if (info.value) {
-        cancelInfo()
+    document.getElementById("alertInfo").classList = "absolute -z-10 opacity-0"
     } else {
         document.getElementById("alertInfo").classList = "absolute z-40 lg:flex-col lg:w-1/3 lg:left-1/3 lg:top-1/4 sm:left-0 md:left-0 sm:h-full opacity-100 bg-white"
-        info.value = true
     }
-}
-function cancelInfo() {
-    document.getElementById("alertInfo").classList = "absolute -z-10 opacity-0"
-    info.value = false
+    info.value = !info.value
 }
 
 function alertWon() {
-    // console.log("Alert win");
     toggleConfetti()
     solving.value = true
     document.getElementById("winInfo").classList = "absolute flex justify-center items-center text-center z-40 w-full top-1/4 opacity-100"
@@ -778,20 +651,18 @@ const toggleConfetti = () => {
 <template>
     <Navbar class="absolute p-2" />
     <div id="alertInfo" class="absolute -z-10 opacity-0">
-        <div class=" bg-blue-500 text-white font-bold text-xl p-2">
-            Info
-        </div>
+        <div class=" bg-blue-500 text-white font-bold text-xl p-2" > Info </div>
         <div class="flex-col">
             <p class="p-2 text-black-900 text-2xl">{{ language[store.current_language].game_rule_title }}</p>
             <p class="p-2 text-black-900 text-xl">{{ language[store.current_language].game_rule_description }}</p>
-            <br><br><br>
             <p class="p-2 text-black-900 text-2xl">{{ language[store.current_language].how_to_play_title }}</p>
             <p class="p-2 text-black-900 text-xl">{{ language[store.current_language].how_to_play_description }}</p>
-            <a class="float-left p-2 py-4 text-blue-500 text-xl" href="https://portail.terra-numerica.org/res/rsrc/785"
-                target="_blank">{{ language[store.current_language].link_text }}</a>
-
-            <button @click="cancelInfo"
-                class="rounded float-right px-5 p-2 m-2 bg-blue-500 text-white font-bold">OK</button>
+            <a class="float-left p-2 py-4 text-blue-500 text-xl" href="https://portail.terra-numerica.org/res/rsrc/785" target="_blank">
+                {{ language[store.current_language].link_text }}
+            </a>
+            <button @click="alertInfo" class="rounded float-right px-5 p-2 m-2 bg-blue-500 text-white font-bold">
+                OK
+            </button>
         </div>
     </div>
 
@@ -812,33 +683,38 @@ const toggleConfetti = () => {
     </div>
 
     <div id="actions_group" class="absolute z-10 flex flex-wrap w-full justify-center items-center bottom-0">
-        <button @click="changeLanguage" class="rounded p-2 m-2 bg-gray-900 text-white font-bold text-xl">{{
-            language[store.current_language].lang }}</button>
+        <button @click="changeLanguage" class="rounded p-2 m-2 bg-gray-900 text-white font-bold text-xl">
+            {{ language[store.current_language].lang }}
+        </button>
         <button v-bind:disabled="solving" @click="alertInfo" class="rounded p-2 m-2 bg-gray-900 text-white font-bold">
             Info
         </button>
-        <button v-bind:disabled="solving" @click="() => { (version === 0 ? version = 1 : version = 0), initCrepes() }"
-            class="rounded p-2 px-4 m-2 bg-gray-900 text-white font-bold">
+        <button v-bind:disabled="solving" @click="() => { (version === 0 ? version = 1 : version = 0), initCrepes() }" class="rounded p-2 px-4 m-2 bg-gray-900 text-white font-bold">
             Version {{ version }}
         </button>
-
-        <button v-bind:disabled="solving" class="rounded p-2 m-2 bg-amber-400 text-black font-bold text-xl"
-            @click.prevent="randomCrepe">{{ language[store.current_language].randomize }}</button>
-        <button v-bind:disabled="solving || !(numbers_of_crepes > 4)"
-            class="rounded-l p-2 m-2 bg-blue-500 text-white font-bold text-xl" @click.prevent="removeCrepe">-</button>
-        <span class="rounded-none p-2 text-black font-bold text-xl">{{ numbers_of_crepes }}</span>
-        <button v-bind:disabled="solving || !(numbers_of_crepes < 20)"
-            class="rounded-r p-2 m-2 bg-blue-500 text-white font-bold text-xl" @click.prevent="addCrepe">+</button>
-        <button v-bind:disabled="solving" class="rounded p-2 m-2 bg-teal-600 text-white font-bold text-xl"
-            @click.prevent="restartCrepes">{{ language[store.current_language].restart }}</button>
-        <span class="p-2 m-2 text-black font-bold text-xl">{{ language[store.current_language].flips_text }}: {{ number_of_flips
-        }}</span>
+        <button v-bind:disabled="solving" class="rounded p-2 m-2 bg-amber-400 text-black font-bold text-xl" @click.prevent="randomCrepe">
+            {{ language[store.current_language].randomize }}
+        </button>
+        <button v-bind:disabled="solving || !(numbers_of_crepes > 4)" class="rounded-l p-2 m-2 bg-blue-500 text-white font-bold text-xl" @click.prevent="editCrepe(-1)">
+            -
+        </button>
+        <span class="rounded-none p-2 text-black font-bold text-xl">
+            {{ numbers_of_crepes }}
+        </span>
+        <button v-bind:disabled="solving || !(numbers_of_crepes < 20)" class="rounded-r p-2 m-2 bg-blue-500 text-white font-bold text-xl" @click.prevent="editCrepe(1)">
+            +
+        </button>
+        <button v-bind:disabled="solving" class="rounded p-2 m-2 bg-teal-600 text-white font-bold text-xl" @click.prevent="restartCrepes">
+            {{ language[store.current_language].restart }}
+        </button>
+        <span class="p-2 m-2 text-black font-bold text-xl">
+            {{ language[store.current_language].flips_text }}: {{ number_of_flips }}
+        </span>
         <!-- <span class="p-2 m-2 text-black font-bold text-xl">{{ language[store.current_language].score }}: {{ score }}</span> -->
-        <button v-bind:disabled="won || solving || !can_solve"
-            class="flex justify-end rounded p-2 m-2 bg-blue-500 text-black font-bold text-xl"
-            @click.prevent="runRecursiveSolve">{{ language[store.current_language].solve
-            }}</button>
-           <a href="#" class="rounded px-5 p-2 m-2 bg-amber-400 text-black font-bold text-xl">{{ language[store.current_language].back }}</a>
+        <button v-bind:disabled="won || solving || !can_solve"  class="flex justify-end rounded p-2 m-2 bg-blue-500 text-black font-bold text-xl" @click.prevent="runRecursiveSolve">
+            {{ language[store.current_language].solve }}
+        </button>
+        <a href="#" class="rounded px-5 p-2 m-2 bg-amber-400 text-black font-bold text-xl">{{ language[store.current_language].back }}</a>
     </div>
 
     <canvas class="z-0" ref="canvas"></canvas>
