@@ -16,6 +16,7 @@ export const language = {
         game_rule_title: `Game rule:`,
         game_rule_description: `You must sort the pancakes from smallest on top to largest on bottom.`,
         link_text: "more info",
+        timer: "Timer"
     },
     fr: {
         play: "Jouer",
@@ -33,6 +34,7 @@ export const language = {
         how_to_play_description: `Vous pouvez retourner des piles de crêpes : en double-cliquant sur une crêpe, la pile de crêpes au-dessus d'elle se retourne et se retrouve à l'envers.Vous pouvez effectuer un zoom avant/arrière et retourner la pile d'avant en arrière. En appuyant sur Maj et le bouton gauche de la souris, il est possible de déplacer la pile de crêpes.`,
         game_rule_title: `Régles de jeu:`,
         game_rule_description: `Vous devez trier les crêpes de la plus petite en haut à la plus grande en bas.`,
-        link_text: "plus d'info"
+        link_text: "plus d'info",
+        timer: "Chronomètre"
     }
 }
