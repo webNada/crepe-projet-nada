@@ -305,12 +305,9 @@ document.addEventListener('mousedown', (event) => {
         }
 
         if (version.value === 1) {
-            if (i === 0) {
-                table[0].side = (table[0].side === 0) ? 1 : 0
-            } else {
-                for (let j = 0; j < i + 1; j++) {
-                    table[j].side = (table[j].side === 0) ? 1 : 0
-                }
+            for (let j = 0; j < i + 1; j++) {
+                console.log(j,i,1-table[j].side)
+                table[j].side = (table[j].side === 0) ? 1 : 0
             }
         }
 
@@ -439,14 +436,15 @@ async function solve(max, k) {
             return
         }
     }
-    // when i = 0, it means that the crepe that we are looking for is at the beginning of the array
+    // when i = 0, it means that the crepe that we are looking for is at the top of the pile
     if (i === 0) { 
         if (k === table.length - 1) { // means that no more crepe to sort so the game is over!
             // black side version you need to flip it
-            if (version.value === 1) {
-                await solveAnimation(table[0].id)
-                if (table[0].side === 1) {
-                    table[i].side = (table[i].side === 0) ? 1 : 0
+            if (version.value === 1 && table[0].side === 0) {
+                //we have to put the black side upwards so that it'll face downwards when sorted
+                if (table[0].id !== lowest_crepe.value) {
+                    await solveAnimation(table[0].id)
+                    table[0].side = 1
                 }
             } else {
                 let tmp = (table[0] === 1) ? 0 : 1
@@ -458,7 +456,6 @@ async function solve(max, k) {
         } else {
             //there still are crepes that need to be sorted
             if (version.value === 1 && table[i].side === 0) {
-                //we have to put the black side upwards so that it'll face downwards when sorted
                 await solveAnimation(table[0].id)
                 table[0].side = 1
             }
@@ -504,7 +501,7 @@ async function solve(max, k) {
         k--
     }
 
-    //special case for black side crepe if it is at it position you need to flip to the beginning else continue
+    //special case for black side crepe if it's at its position you need to flip to the beginning else continue
     else if (i === table.length - 1 - k && version.value === 1 && table[i].side === 1) {
         await solveAnimation(table[i].id)
         // again swap all crepes from current to the bottom
@@ -513,8 +510,8 @@ async function solve(max, k) {
             table[j] = table[table.length - 1 - j - k]
             table[table.length - 1 - j - k] = tmp
             // swap all sides
-                table[j].side = (table[j].side === 0) ? 1 : 0
-            if (j!==table.length - 1 - j - k) { // if it' i's not the same crepe
+            table[j].side = (table[j].side === 0) ? 1 : 0
+            if (j!==table.length - 1 - j - k) { // if it's not the same crepe
                 table[table.length - 1 - j - k].side = (table[table.length - 1 - j - k].side === 0) ? 1 : 0
             }
         }
