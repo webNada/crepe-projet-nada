@@ -1,4 +1,4 @@
-#to run the game:
+# to run the game:
 npx vite
 
 
