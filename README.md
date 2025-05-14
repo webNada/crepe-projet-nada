@@ -1,3 +1,7 @@
+#to run the game:
+npx vite
+
+
 # Dev commands
 pnpm or npm run dev
 
