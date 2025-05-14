@@ -27,10 +27,6 @@ modal1.AddButtonToModal("Recommencer", () => restartCrepes());
 modal1.AddButtonToModal("Mélanger", () => randomCrepe());
 modal1.AddButtonToModal("Résoudre", () => runRecursiveSolve());
 
-fw.startLoadingScreen();
-fw.removeLoadingScreen();
-fw.onResize();
-fw.addSimpleSceneWithTable();
 
 import { ref } from 'vue'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
@@ -44,7 +40,7 @@ let version = 0
 
 //State variables 
 const info = ref(false)
-const number_of_flips = ref(0)
+let number_of_flips = 0
 const numbers_of_crepes = ref(4)
 const lowest_crepe = ref(0)
 const highest_crepe = ref(0)
@@ -72,8 +68,6 @@ function chrono(bool){ // if true we run the timer else we stop it
 // Three.js Parameters
 let raycaster= new THREE.Raycaster();
 let light;
-let scene;
-window.scene = scene
 let camera;
 let renderer;
 let controls;
@@ -103,27 +97,31 @@ let couleur_impair = [impair_side, impair, impair]
   //////////////////////////////
  // Creation of the 3D scene //
 //////////////////////////////
-scene = new THREE.Scene()
-scene.background = new THREE.Color('gainsboro');
+window.scene = new THREE.Scene()
+window.scene.background = new THREE.Color('gainsboro');
 let ambientLight = new THREE.AmbientLight('beige', 0.5);
 light = new THREE.DirectionalLight('white', 1);
 light.position.set(1, 1, 1);
-scene.add(light)
-scene.add(group)
+window.scene.add(light)
+window.scene.add(group)
+window.scene.add(ambientLight);
 
-scene.add(ambientLight);
+fw.startLoadingScreen();
+fw.removeLoadingScreen();
+fw.onResize();
+fw.addSimpleSceneWithTable();
+
 renderer = new THREE.WebGLRenderer({canvas:document.getElementById('canvas'), antialias: true})
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight);
-camera.position.set(0, 2, 10);
-camera.lookAt(scene.position);
+camera.position.set(0, 13, 10);
 controls = new OrbitControls(camera, renderer.domElement);
-controls.minDistance = 5;
-controls.maxDistance = 35; 
+controls.minDistance = 55;
 controls.enableDamping = true;
-
+controls.target.set(0,10,0);
+controls.update();
   ////////////////////////////////////////////////
  // Creation of the area underneath the crepes //
 ////////////////////////////////////////////////
@@ -134,11 +132,11 @@ controls.enableDamping = true;
 let loader = new GLTFLoader();
 // source of the white plate: https://sketchfab.com/3d-models/white-ceramic-plate-4036111d2c5c47bab2320202d5e9a2a4
 loader.load( 
-    "./src/white_ceramic_plate/scene.gltf",
+    "./src/models/white_ceramic_plate/scene.gltf",
     function ( gltf ) {
-        gltf.scene.scale.set(12 * gltf.scene.scale.x, 12 * gltf.scene.scale.y, 12 * gltf.scene.scale.z)
-        gltf.scene.position.y = -0.1;
-        scene.add( gltf.scene );
+        gltf.scene.scale.set(40 * gltf.scene.scale.x, 40 * gltf.scene.scale.y, 40 * gltf.scene.scale.z)
+        gltf.scene.position.y = 10.5;
+        window.scene.add( gltf.scene );
     },
     undefined, function ( error ) { console.log( 'erreur',error ); } );
 initCrepes(); animate();
@@ -157,13 +155,14 @@ const shuffleArray = array => {
 //initCrepes() Creates a list of crepes based on the variable 'number_of_crepes' then adds them to the Three.js scene.
 //Depending on the parity of a crepe's position in the list and the game version, its textures will differ.
 function initCrepes() {
+    document.getElementById('flip-count').innerHTML = `Nombre de retournements: 0`    
     for (let i = 0; i < crepes.length; i++) {
         crepes[i].geometry.dispose()
-        scene.remove(crepes[i])
+        window.scene.remove(crepes[i])
     }
 
     won = false
-    number_of_flips.value = 0
+    number_of_flips = 0
     group.clear()
     restart_table = []
     table = []
@@ -176,17 +175,17 @@ function initCrepes() {
     }
 
     for (let i = numbers_of_crepes.value - 1; i >= 0; i--) {
-        let geometry = new THREE.CylinderGeometry(1.2 - i / numbers_of_crepes.value, 1.2 - i / numbers_of_crepes.value, 0.18)
+        let geometry = new THREE.CylinderGeometry(5 - i / numbers_of_crepes.value*3, 5 - i / numbers_of_crepes.value*3, 0.5)
         // creation of the crepe and adding it in different arrays
         let disc
         if (i % 2 === 0) { disc = new THREE.Mesh(geometry, couleur_pair) }
         else { disc = new THREE.Mesh(geometry, couleur_impair) }
          
-        disc.position.y = 0.2 * i;
+        disc.position.y = 0.5 * i + 10.9;
         table.push({ id: disc.id, side: 0 })
         restart_table.push({ id: disc.id, y: disc.position.y, side: 0 })
         crepes.push(disc);
-        scene.add(disc)
+        window.scene.add(disc)
     }
 
     lowest_crepe.value = table[0].id
@@ -195,10 +194,10 @@ function initCrepes() {
 }
 
 function randomCrepe() {
-    number_of_flips.value = 0
+    number_of_flips = 0
     solving.value = true
     while (group.children.length) {
-        scene.attach(group.children[0]);
+        window.scene.attach(group.children[0]);
     }
 
     shuffleArray(crepes)
@@ -210,7 +209,7 @@ function randomCrepe() {
         side = Math.floor(Math.random() * (version + 1))  // will be equal to 0 or 1
         table.push({ id: crepes[i].id, side: side}) // 0 is white side and 1 is black side
         crepes[i].rotation.set((Math.PI) * side, 0, 0) // if side is 1 then it is 180 degrees else 0
-        crepes[i].position.y = 0.2 * i;
+        crepes[i].position.y = 0.5 * i + 10.9;
         restart_table.push({ id: crepes[i].id, y: crepes[i].position.y, side: side })
     }
     solving.value = false
@@ -220,7 +219,7 @@ function randomCrepe() {
 
 function restartCrepes() {
     while (group.children.length) {
-        scene.attach(group.children[0]);
+        window.scene.attach(group.children[0]);
     }
 
     table = []
@@ -243,7 +242,7 @@ function restartCrepes() {
         }
     }
 
-    number_of_flips.value = 0
+    number_of_flips = 0
     won = false
     solving.value = false
     chrono(true)
@@ -264,7 +263,7 @@ window.addEventListener("DOMContentLoaded", (event) => {
 function editCrepe(n) {
     for (let i = 0; i < crepes.length; i++) {
         crepes[i].geometry.dispose()
-        scene.remove(crepes[i])
+        window.scene.remove(crepes[i])
     }
 
     table = []
@@ -284,13 +283,13 @@ document.addEventListener('mousedown', (event) => {
         const intersection = raycaster.intersectObjects(crepes);
 
         if (!(intersection.length > 0 && intersection[0].object.type === "Mesh")) return
-        while (group.children.length) { scene.attach(group.children[0]); }
+        while (group.children.length) { window.scene.attach(group.children[0]); }
 
         group.rotation.z = 0;
         group.position.y = 0;
         solving.value = true
         let y = intersection[0].object.position.y
-        group.position.y = (0.2 * (numbers_of_crepes.value - 1) + y) / 2;
+        group.position.y = y;
 
         let i = 0
 
@@ -312,11 +311,14 @@ document.addEventListener('mousedown', (event) => {
             table[i - j] = tmp
         }
 
+
         flip(group, 300)
         new Tween(group.rotation)
             .to({ z: Math.PI }, 600)
             .onComplete(() => {
-                if (i!==0 || version===1) { number_of_flips.value++ }
+                number_of_flips++
+                console.log(number_of_flips)
+                document.getElementById('flip-count').innerHTML = `Nombre de retournements: ${number_of_flips}`
                 solving.value = false
                 let low = lowest_crepe.value
                 let k = 0
@@ -338,7 +340,7 @@ document.addEventListener('mousedown', (event) => {
                         }
                     }
                 }
-                if (won && number_of_flips.value!==0) {
+                if (won && number_of_flips!==0) {
                     won = !won
                     alertWon()
                 }})
@@ -361,23 +363,23 @@ function delay(milliseconds) {
 
 function flip(group, duration) {
     new Tween(group.position)
-        .to({ y: group.position.y + 1 }, duration)
+        .to({ y: group.position.y + 10 }, duration)
         .easing(Easing.Quadratic.Out)
         .chain(
             new Tween(group.position)
-            .to({ y: group.position.y }, duration)
+            .to({ y:  group.position.y + (group.children.length - 1) * 0.5 }, duration)
             .easing(Easing.Quadratic.In))
         .start();
 }
 
 async function solveAnimation(id) {
-    while (group.children.length) { scene.attach(group.children[0]); }
+    while (group.children.length) { window.scene.attach(group.children[0]); }
     group.rotation.z = 0;
     group.position.y = 0;
 
-    const object = scene.getObjectById(id);
+    const object = window.scene.getObjectById(id);
     let y = object.position.y
-    group.position.y = (0.2 * (numbers_of_crepes.value - 1) + y) / 2;
+    group.position.y = y;
 
     let i = 0
     while (i < crepes.length) {
@@ -520,7 +522,7 @@ async function solve(max, k) {
 
 function runRecursiveSolve() {
     chrono(false) // the timer is useless here since the game is solving itself
-    number_of_flips.value = 0
+    number_of_flips = 0
     solve(highest_crepe.value, 0)
     won = false
     chrono(true)
@@ -530,7 +532,7 @@ function animate() {
     camera.updateMatrixWorld();
     controls.update(); update()
     light.position.copy(camera.position);
-    renderer.render(scene, camera);
+    renderer.render(window.scene, camera);
     requestAnimationFrame(animate);
 }
 
@@ -545,7 +547,7 @@ function alertInfo() {
 }
 
 function showWin() {
-  document.getElementById('screenWin').style.display = 'flex'; console.log('huh')
+  document.getElementById('screenWin').style.display = 'flex';
 }
 
 document.getElementById('closescreenWin').addEventListener('click', () => {
@@ -555,7 +557,7 @@ document.getElementById('closescreenWin').addEventListener('click', () => {
 })
 function alertWon() {
     chrono(false)
-    number_of_flips.value = 0
+    number_of_flips = 0
     solving.value = false
     showWin()
 }
