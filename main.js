@@ -155,7 +155,6 @@ const shuffleArray = array => {
 //initCrepes() Creates a list of crepes based on the variable 'number_of_crepes' then adds them to the Three.js scene.
 //Depending on the parity of a crepe's position in the list and the game version, its textures will differ.
 function initCrepes() {
-    document.getElementById('flip-count').innerHTML = `Nombre de retournements: 0`    
     for (let i = 0; i < crepes.length; i++) {
         crepes[i].geometry.dispose()
         window.scene.remove(crepes[i])
@@ -291,11 +290,12 @@ document.addEventListener('mousedown', (event) => {
         let y = intersection[0].object.position.y
         group.position.y = y;
 
-        let i = 0
-
-        for (let j = 0; j < crepes.length; j++) {
+        console.log(`intersect ${intersection[0].object.id}`)
+        let index = table.findIndex((crepe) => crepe.id === intersection[0].object.id)
+        let j = 0
+        while ( j < crepes.length) {
             if (crepes[j].position.y >= y) { group.attach(crepes[j]) }
-            if (table[j].id === intersection[0].object.id && i == j-1) { i = j }            
+            j++
         }
 
         if (version === 1) {
@@ -305,11 +305,12 @@ document.addEventListener('mousedown', (event) => {
             }
         }
 
-        for (let j = 0; j < i / 2; j++) {
+        for (let j = 0; j < index / 2; j++) {
             let tmp = table[j]
-            table[j] = table[i - j]
-            table[i - j] = tmp
+            table[j] = table[index - j]
+            table[index - j] = tmp
         }
+            console.log(table)
 
 
         flip(group, 300)
@@ -317,20 +318,18 @@ document.addEventListener('mousedown', (event) => {
             .to({ z: Math.PI }, 600)
             .onComplete(() => {
                 number_of_flips++
-                console.log(number_of_flips)
-                document.getElementById('flip-count').innerHTML = `Nombre de retournements: ${number_of_flips}`
+                console.log('flip ', number_of_flips)
                 solving.value = false
                 let low = lowest_crepe.value
                 let k = 0
                 won = true
-
-                while (k < table.length) {
-                    if (table[k].id !== low) {
+                console.log("verif",low)
+                for (let i = 1; i < table.length; i++) {
+                    if (table[i].id <= table[i-1].id) {
+                        console.log(table[i].id , table[i-1].id)
                         won = false
                         break
                     }
-                    k++
-                    low++
                 }
                 if (version === 1) {
                     for (let ii = 0; ii < table.length; ii++) {
@@ -534,20 +533,14 @@ function animate() {
     light.position.copy(camera.position);
     renderer.render(window.scene, camera);
     requestAnimationFrame(animate);
-}
+        document.getElementById('flip-count').innerHTML = `Nombre de retournements: ${number_of_flips}`    
 
-function alertInfo() {
-    chrono(info.value)
-    if (info.value) {
-        document.getElementById("alertInfo").classList = "absolute -z-10 opacity-0"
-    } else {
-        document.getElementById("alertInfo").classList = "absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-h-[80vh] w-[50%] bg-white rounded-lg shadow-lg p-4 overflow-y-auto"
-    }
-    info.value = !info.value
+    
 }
 
 function showWin() {
   document.getElementById('screenWin').style.display = 'flex';
+  restartCrepes()
 }
 
 document.getElementById('closescreenWin').addEventListener('click', () => {
