@@ -28,7 +28,7 @@ modal1.AddButtonToModal("Mélanger", () => randomCrepe());
 modal1.AddButtonToModal("Résoudre", () => runRecursiveSolve());
 
 
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { Tween, Easing, update } from "three/addons/libs/tween.module.js"
 import * as THREE from "three";
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
