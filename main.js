@@ -28,7 +28,6 @@ modal1.AddButtonToModal("Mélanger", () => randomCrepe());
 modal1.AddButtonToModal("Résoudre", () => runRecursiveSolve());
 
 
-import { ref } from 'vue'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Tween, Easing, update } from "three/addons/libs/tween.module.js"
 import * as THREE from "three";
@@ -39,12 +38,12 @@ let version = 0
 // and where these black sides all have to be down in order to win  
 
 //State variables 
-const info = ref(false)
+let info = false
 let number_of_flips = 0
-const numbers_of_crepes = ref(4)
-const lowest_crepe = ref(0)
-const highest_crepe = ref(0)
-const solving = ref(false) // is used to disable the buttons during the animation
+let numbers_of_crepes = 4
+let lowest_crepe = 0
+let highest_crepe = 0
+let solving = false // is used to disable the buttons during the animation
 let won = false // is used to check if the game is over
 let sec = 0
 var timer = 0
@@ -173,8 +172,8 @@ function initCrepes() {
         couleur_impair[2] = impair_bottom
     }
 
-    for (let i = numbers_of_crepes.value - 1; i >= 0; i--) {
-        let geometry = new THREE.CylinderGeometry(5 - i / numbers_of_crepes.value*3, 5 - i / numbers_of_crepes.value*3, 0.5)
+    for (let i = numbers_of_crepes - 1; i >= 0; i--) {
+        let geometry = new THREE.CylinderGeometry(5 - i / numbers_of_crepes*3, 5 - i / numbers_of_crepes*3, 0.5)
         // creation of the crepe and adding it in different arrays
         let disc
         if (i % 2 === 0) { disc = new THREE.Mesh(geometry, couleur_pair) }
@@ -187,14 +186,14 @@ function initCrepes() {
         window.scene.add(disc)
     }
 
-    lowest_crepe.value = table[0].id
-    highest_crepe.value = table[table.length - 1].id
+    lowest_crepe = table[0].id
+    highest_crepe = table[table.length - 1].id
     chrono(true)
 }
 
 function randomCrepe() {
     number_of_flips = 0
-    solving.value = true
+    solving = true
     while (group.children.length) {
         window.scene.attach(group.children[0]);
     }
@@ -211,7 +210,7 @@ function randomCrepe() {
         crepes[i].position.y = 0.5 * i + 10.9;
         restart_table.push({ id: crepes[i].id, y: crepes[i].position.y, side: side })
     }
-    solving.value = false
+    solving = false
     chrono(true)
     //initCrepes()
 }
@@ -222,7 +221,7 @@ function restartCrepes() {
     }
 
     table = []
-    let low = lowest_crepe.value
+    let low = lowest_crepe
     for (let i = 0; i < restart_table.length; i++) {
         table[i] = { id: restart_table[i].id, side: restart_table[i].side }
         if (table[i].id !== low)  won = false 
@@ -243,7 +242,7 @@ function restartCrepes() {
 
     number_of_flips = 0
     won = false
-    solving.value = false
+    solving = false
     chrono(true)
 }
 
@@ -268,14 +267,14 @@ function editCrepe(n) {
     table = []
     crepes = []
     crepes.length = 0
-    highest_crepe.value += n
-    numbers_of_crepes.value += n
+    highest_crepe += n
+    numbers_of_crepes += n
     initCrepes()
 }
 
 document.addEventListener('mousedown', (event) => {
 
-    if (event.detail === 2 && !solving.value && !info.value) {
+    if (event.detail === 2 && !solving && !info) {
         pointer.x = ((event.clientX / window.innerWidth) * 2 - 1);
         pointer.y = (-(event.clientY / window.innerHeight) * 2 + 1);
         raycaster.setFromCamera(pointer, camera);
@@ -286,7 +285,7 @@ document.addEventListener('mousedown', (event) => {
 
         group.rotation.z = 0;
         group.position.y = 0;
-        solving.value = true
+        solving = true
         let y = intersection[0].object.position.y
         group.position.y = y;
 
@@ -319,8 +318,8 @@ document.addEventListener('mousedown', (event) => {
             .onComplete(() => {
                 number_of_flips++
                 console.log('flip ', number_of_flips)
-                solving.value = false
-                let low = lowest_crepe.value
+                solving = false
+                let low = lowest_crepe
                 let k = 0
                 won = true
                 console.log("verif",low)
@@ -406,7 +405,7 @@ async function solveAnimation(id) {
 
 // max crepe is starting at the highest value and then decreases. also the end index k is incrementing by 1 in order to get the wanted position of the crepe
 async function solve(max, k) {
-    solving.value = true
+    solving = true
     let i = 0
     // I am looking for the biggest crepe's position (max)
     while (i < table.length) {
@@ -428,7 +427,7 @@ async function solve(max, k) {
             }
         }
         if (version === 1 && won || version === 0) {
-            solving.value = false
+            solving = false
             return
         }
     }
@@ -438,7 +437,7 @@ async function solve(max, k) {
             // black side version you need to flip it
             if (version === 1 && table[0].side === 0) {
                 //we have to put the black side upwards so that it'll face downwards when sorted
-                if (table[0].id !== lowest_crepe.value) {
+                if (table[0].id !== lowest_crepe) {
                     await solveAnimation(table[0].id)
                     table[0].side = 1
                 }
@@ -447,7 +446,7 @@ async function solve(max, k) {
                 table[0] = (table[1] === 1) ? 0 : 1
                 table[1] = tmp
             }
-            solving.value = false
+            solving = false
             return
         } else {
             //there still are crepes that need to be sorted
@@ -522,7 +521,7 @@ async function solve(max, k) {
 function runRecursiveSolve() {
     chrono(false) // the timer is useless here since the game is solving itself
     number_of_flips = 0
-    solve(highest_crepe.value, 0)
+    solve(highest_crepe, 0)
     won = false
     chrono(true)
 }
@@ -551,7 +550,7 @@ document.getElementById('closescreenWin').addEventListener('click', () => {
 function alertWon() {
     chrono(false)
     number_of_flips = 0
-    solving.value = false
+    solving = false
     showWin()
 }
 
