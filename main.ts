@@ -7,20 +7,22 @@
 import Framework from './framework/js/framework.js';
 
 const fw = new Framework();
-fw.addButtonToNavbar({textButton : "Règles",onclickFunction: () => showHelpModal()});
-fw.addButtonToNavbar({textButton : "Changer de version",onclickFunction: () => {
-    (version === 0 ? version = 1 : version = 0);
-    initCrepes();
-    document.getElementById('version').innerHTML = `Version ${version}`
-}});
-fw.addButtonToNavbar({textButton : "-1 crêpe",onclickFunction: () => editCrepe(-1)});
-fw.addButtonToNavbar({textButton : "+1 crêpe",onclickFunction: () => editCrepe(1)});
+fw.addButtonToNavbar({ textButton: "Règles", onclickFunction: () => showHelpModal() });
+fw.addButtonToNavbar({
+    textButton: "Changer de version", onclickFunction: () => {
+        (version === 0 ? version = 1 : version = 0);
+        initCrepes();
+        document.getElementById('version').innerHTML = `Version ${version}`
+    }
+});
+fw.addButtonToNavbar({ textButton: "-1 crêpe", onclickFunction: () => editCrepe(-1) });
+fw.addButtonToNavbar({ textButton: "+1 crêpe", onclickFunction: () => editCrepe(1) });
 const modal1 = fw.getPermanentModal({
     title: "Le crêpier psychorigide",
     position: { top: 10, right: 0 },
     width: "350px",
     theme: "light", // or "dark" 
-    id: "gameSettingsModal", 
+    id: "gameSettingsModal",
 });
 //rajouer un bouton dans le modal avec la méthode addButton
 modal1.AddButtonToModal("Recommencer", () => restartCrepes());
@@ -28,73 +30,88 @@ modal1.AddButtonToModal("Mélanger", () => randomCrepe());
 modal1.AddButtonToModal("Résoudre", () => runRecursiveSolve());
 
 
-import * as THREE from 'https://unpkg.com/three@0.160.1/build/three.module.js';
-import { OrbitControls } from 'https://unpkg.com/three@0.160.1/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+// Use a single source for Three.js modules to avoid mixing CDN and local versions.
+// Vite will optimize these imports and bundle them correctly.
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+// Tweening library for smooth flip animations
+import { Tween, Easing, update as tweenUpdate } from '@tweenjs/tween.js';
 
-let version = 0
+
+let version: number = 0;
 // version 0 is the classic game and version 1 is the one that adds a black side on each crepe
 // and where these black sides all have to be down in order to win  
 
 //State variables 
-let info = false
-let number_of_flips = 0
-let numbers_of_crepes = 4
-let lowest_crepe = 0
-let highest_crepe = 0
-let solving = false // is used to disable the buttons during the animation
-let won = false // is used to check if the game is over
-let sec = 0
-var timer = 0
+let info: boolean = false;
+let number_of_flips: number = 0;
+let numbers_of_crepes: number = 4;
+let lowest_crepe: number = 0;
+let highest_crepe: number = 0;
+let solving: boolean = false; // is used to disable the buttons during the animation
+let won: boolean = false;// is used to check if the game is over
+let sec: number = 0;
+var timer: number = 0;
 
-function chrono(bool){ // if true we run the timer else we stop it
-    let safeTimerDisplay = document.getElementById('safeTimerDisplay')
-    if (timer!==0) {
+function chrono(run: boolean): void { // if true we run the timer else we stop it
+    let safeTimerDisplay = document.getElementById('safeTimerDisplay') as HTMLElement
+    if (timer !== 0) {
         clearInterval(timer);
-        sec=0
+        sec = 0
     }
-    if (!bool) return
+    if (!run) return
     safeTimerDisplay.innerHTML = 'Chrono : 00:00'
-    timer = setInterval( function(){
+    timer = window.setInterval(function () {
         sec++;
-        if (sec > 600) { clearInterval(timer);}
+        if (sec > 600) { clearInterval(timer); }
         safeTimerDisplay.innerHTML = "Chrono : "
-        safeTimerDisplay.innerHTML += ((sec/60<10)? '0' : '') + Math.floor(sec/60) + ':' + ((sec%60<10)? '0' : '') + sec%60;
+        safeTimerDisplay.innerHTML += ((sec / 60 < 10) ? '0' : '') + Math.floor(sec / 60) + ':' + ((sec % 60 < 10) ? '0' : '') + sec % 60;
     }, 1000);
 }
 
 // Three.js Parameters
-let raycaster= new THREE.Raycaster();
-let light;
-let camera;
-let renderer;
-let controls;
+let raycaster: THREE.Raycaster = new THREE.Raycaster();
+let light: THREE.DirectionalLight;
+let camera: THREE.PerspectiveCamera;
+let renderer: THREE.WebGLRenderer;
+let controls: OrbitControls;
 const pointer = new THREE.Vector2(Infinity, Infinity); // gives the offset from Raycaster to the Camera
 const group = new THREE.Group();
 const load = new THREE.TextureLoader(); //Loads the textures for the crepes
 
+interface CrepeInfo {
+    id: number;
+    y?: number;
+    side: number;
+}
 // Arrays to store the crepes and their positions
-let crepes = []
-let table = []
-let restart_table = []
+let crepes: THREE.Mesh[] = [];
+let table: CrepeInfo[] = [];
+let restart_table: CrepeInfo[] = [];
 
 // Textures of the crepes so that they are already loaded
-const pair = new THREE.MeshBasicMaterial({ map : load.load('./src/textures/Oakcrepe.png') });
-const pair_side = new THREE.MeshLambertMaterial({ color : 0x494134 });
-const impair = new THREE.MeshBasicMaterial({ map : load.load("./src/textures/crepetexture.png") });
-const impair_side = new THREE.MeshLambertMaterial( { color: 0xE5B88E });
+const pair = new THREE.MeshBasicMaterial({ map: load.load('./src/textures/Oakcrepe.png') });
+const pair_side = new THREE.MeshLambertMaterial({ color: 0x494134 });
+const impair = new THREE.MeshBasicMaterial({ map: load.load("./src/textures/crepetexture.png") });
+const impair_side = new THREE.MeshLambertMaterial({ color: 0xE5B88E });
 
-const pair_bottom = new THREE.MeshBasicMaterial({ map : load.load("./src/textures/Oakcrepe_back.png") });
-const impair_bottom = new THREE.MeshBasicMaterial({ map : load.load("./src/textures/crepetexture_back.png") });
+const pair_bottom = new THREE.MeshBasicMaterial({ map: load.load("./src/textures/Oakcrepe_back.png") });
+const impair_bottom = new THREE.MeshBasicMaterial({ map: load.load("./src/textures/crepetexture_back.png") });
 
 let couleur_pair = [pair_side, pair, pair]
 let couleur_impair = [impair_side, impair, impair]
 
 
 
-  //////////////////////////////
- // Creation of the 3D scene //
 //////////////////////////////
+// Creation of the 3D scene //
+//////////////////////////////
+declare global {
+    interface Window {
+        scene: THREE.Scene;
+    }
+}
 window.scene = new THREE.Scene()
 window.scene.background = new THREE.Color('gainsboro');
 let ambientLight = new THREE.AmbientLight('beige', 0.5);
@@ -109,7 +126,7 @@ fw.removeLoadingScreen();
 fw.onResize();
 fw.addSimpleSceneWithTable();
 
-renderer = new THREE.WebGLRenderer({canvas:document.getElementById('canvas'), antialias: true})
+renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas') as HTMLCanvasElement, antialias: true })
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -118,30 +135,29 @@ camera.position.set(0, 13, 10);
 controls = new OrbitControls(camera, renderer.domElement);
 controls.minDistance = 55;
 controls.enableDamping = true;
-controls.target.set(0,10,0);
+controls.target.set(0, 10, 0);
 controls.update();
-  ////////////////////////////////////////////////
- // Creation of the area underneath the crepes //
+////////////////////////////////////////////////
+// Creation of the area underneath the crepes //
 ////////////////////////////////////////////////
 // Source of the textures: Terra Numerica and freepik.com 
 // Editing realised by myself
 // the next 17 lines can be removed once the framework is done and offers a "support" for the crepes
-
 let loader = new GLTFLoader();
 // source of the white plate: https://sketchfab.com/3d-models/white-ceramic-plate-4036111d2c5c47bab2320202d5e9a2a4
-loader.load( 
+loader.load(
     "./src/models/white_ceramic_plate/scene.gltf",
-    function ( gltf ) {
+    function (gltf: any) {
         gltf.scene.scale.set(40 * gltf.scene.scale.x, 40 * gltf.scene.scale.y, 40 * gltf.scene.scale.z)
         gltf.scene.position.y = 10.5;
-        window.scene.add( gltf.scene );
+        window.scene.add(gltf.scene);
     },
-    undefined, function ( error ) { console.log( 'erreur',error ); } );
+    undefined, function (error) { console.log('erreur', error); });
 initCrepes(); animate();
 
 
 //The Fisher-Yates algorithm https://dev.to/codebubb/how-to-shuffle-an-array-in-javascript-2ikj
-const shuffleArray = array => {
+const shuffleArray = (array: THREE.Mesh[]): void => {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         const temp = array[i];
@@ -152,7 +168,7 @@ const shuffleArray = array => {
 
 //initCrepes() Creates a list of crepes based on the variable 'number_of_crepes' then adds them to the Three.js scene.
 //Depending on the parity of a crepe's position in the list and the game version, its textures will differ.
-function initCrepes() {
+function initCrepes(): void {
     for (let i = 0; i < crepes.length; i++) {
         crepes[i].geometry.dispose()
         window.scene.remove(crepes[i])
@@ -172,12 +188,12 @@ function initCrepes() {
     }
 
     for (let i = numbers_of_crepes - 1; i >= 0; i--) {
-        let geometry = new THREE.CylinderGeometry(5 - i / numbers_of_crepes*3, 5 - i / numbers_of_crepes*3, 0.5)
+        let geometry = new THREE.CylinderGeometry(5 - i / numbers_of_crepes * 3, 5 - i / numbers_of_crepes * 3, 0.5)
         // creation of the crepe and adding it in different arrays
         let disc
         if (i % 2 === 0) { disc = new THREE.Mesh(geometry, couleur_pair) }
         else { disc = new THREE.Mesh(geometry, couleur_impair) }
-         
+
         disc.position.y = 0.5 * i + 10.9;
         table.push({ id: disc.id, side: 0 })
         restart_table.push({ id: disc.id, y: disc.position.y, side: 0 })
@@ -204,7 +220,7 @@ function randomCrepe() {
 
     for (let i = crepes.length - 1; i >= 0; i--) {
         side = Math.floor(Math.random() * (version + 1))  // will be equal to 0 or 1
-        table.push({ id: crepes[i].id, side: side}) // 0 is white side and 1 is black side
+        table.push({ id: crepes[i].id, side: side }) // 0 is white side and 1 is black side
         crepes[i].rotation.set((Math.PI) * side, 0, 0) // if side is 1 then it is 180 degrees else 0
         crepes[i].position.y = 0.5 * i + 10.9;
         restart_table.push({ id: crepes[i].id, y: crepes[i].position.y, side: side })
@@ -223,7 +239,7 @@ function restartCrepes() {
     let low = lowest_crepe
     for (let i = 0; i < restart_table.length; i++) {
         table[i] = { id: restart_table[i].id, side: restart_table[i].side }
-        if (table[i].id !== low)  won = false 
+        if (table[i].id !== low) won = false
         low++
     }
 
@@ -248,7 +264,7 @@ function restartCrepes() {
 // to set the timer back to 0 when the action bar is clicked
 window.addEventListener("DOMContentLoaded", (event) => {
     const actions = document.getElementById('actions_group');
-    actions.addEventListener('click', (event) => {
+    actions.addEventListener('click', (event: MouseEvent) => {
         if (!(event.target.nodeName === 'BUTTON')) { return; }
         chrono(true)
     })
@@ -257,7 +273,7 @@ window.addEventListener("DOMContentLoaded", (event) => {
 // editCrepe() is responsible for clearing the arrays of old crepes as well as the 3D scene.
 // It increments or decrements the maximum number of crepes by n depending on the sign of n,
 // then calls initCrepes() to recreate them with one additional crepe.
-function editCrepe(n) {
+function editCrepe(n: number): void {
     for (let i = 0; i < crepes.length; i++) {
         crepes[i].geometry.dispose()
         window.scene.remove(crepes[i])
@@ -271,110 +287,95 @@ function editCrepe(n) {
     initCrepes()
 }
 
-document.addEventListener('mousedown', (event) => {
+// Interaction: use a real 'dblclick' event instead of relying on mousedown detail===2
+// and fix undefined variable 'i' (should be index) when toggling sides in version 1.
+document.addEventListener('dblclick', (event: MouseEvent) => {
+    if (solving || info) return;
+    pointer.x = ((event.clientX / window.innerWidth) * 2 - 1);
+    pointer.y = (-(event.clientY / window.innerHeight) * 2 + 1);
+    raycaster.setFromCamera(pointer, camera);
+    const intersection = raycaster.intersectObjects(crepes) as THREE.Intersection[];
+    if (!(intersection.length > 0 && intersection[0].object.type === 'Mesh')) return;
 
-    if (event.detail === 2 && !solving && !info) {
-        pointer.x = ((event.clientX / window.innerWidth) * 2 - 1);
-        pointer.y = (-(event.clientY / window.innerHeight) * 2 + 1);
-        raycaster.setFromCamera(pointer, camera);
-        const intersection = raycaster.intersectObjects(crepes);
+    // Reset group and prepare flip
+    while (group.children.length) { window.scene.attach(group.children[0]); }
+    group.rotation.z = 0;
+    group.position.y = 0;
+    solving = true;
+    const y = intersection[0].object.position.y;
+    group.position.y = y;
 
-        if (!(intersection.length > 0 && intersection[0].object.type === "Mesh")) return
-        while (group.children.length) { window.scene.attach(group.children[0]); }
-
-        group.rotation.z = 0;
-        group.position.y = 0;
-        solving = true
-        let y = intersection[0].object.position.y
-        group.position.y = y;
-
-        console.log(`intersect ${intersection[0].object.id}`)
-        let index = table.findIndex((crepe) => crepe.id === intersection[0].object.id)
-        let j = 0
-        while ( j < crepes.length) {
-            if (crepes[j].position.y >= y) { group.attach(crepes[j]) }
-            j++
-        }
-
-        if (version === 1) {
-            for (let j = 0; j < i + 1; j++) {
-                console.log(j,i,1-table[j].side)
-                table[j].side = (table[j].side === 0) ? 1 : 0
-            }
-        }
-
-        for (let j = 0; j < index / 2; j++) {
-            let tmp = table[j]
-            table[j] = table[index - j]
-            table[index - j] = tmp
-        }
-            console.log(table)
-
-
-        flip(group, 300)
-        new Tween(group.rotation)
-            .to({ z: Math.PI }, 600)
-            .onComplete(() => {
-                number_of_flips++
-                console.log('flip ', number_of_flips)
-                solving = false
-                let low = lowest_crepe
-                let k = 0
-                won = true
-                console.log("verif",low)
-                for (let i = 1; i < table.length; i++) {
-                    if (table[i].id <= table[i-1].id) {
-                        console.log(table[i].id , table[i-1].id)
-                        won = false
-                        break
-                    }
-                }
-                if (version === 1) {
-                    for (let ii = 0; ii < table.length; ii++) {
-                        if (table[ii].side !== 0) {
-                            won = false
-                            ii = table.length
-                        }
-                    }
-                }
-                if (won && number_of_flips!==0) {
-                    won = !won
-                    alertWon()
-                }})
-            .start()
+    const index = table.findIndex((crepe) => crepe.id === intersection[0].object.id);
+    for (let j = 0; j < crepes.length; j++) {
+        if (crepes[j].position.y >= y) { group.attach(crepes[j]); }
     }
+
+    if (version === 1) {
+        for (let j = 0; j < index + 1; j++) {
+            table[j].side = (table[j].side === 0) ? 1 : 0;
+        }
+    }
+
+    // Reverse order up to clicked crepe
+    for (let j = 0; j < index / 2; j++) {
+        let tmp = table[j];
+        table[j] = table[index - j];
+        table[index - j] = tmp;
+    }
+
+    flip(group, 300);
+    new Tween(group.rotation)
+        .to({ z: Math.PI }, 600)
+        .onComplete(() => {
+            number_of_flips++;
+            solving = false;
+            won = true;
+            for (let i = 1; i < table.length; i++) {
+                if (table[i].id <= table[i - 1].id) { won = false; break; }
+            }
+            if (version === 1) {
+                for (let ii = 0; ii < table.length; ii++) {
+                    if (table[ii].side !== 0) { won = false; break; }
+                }
+            }
+            if (won && number_of_flips !== 0) {
+                won = !won; // reset flag
+                alertWon();
+            }
+        })
+        .start();
 }, false);
 
-function handler(){
+function handler(): void {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-window.addEventListener('resize', () => handler(), false); 
+window.addEventListener('resize', () => handler(), false);
 window.addEventListener('zoom', () => handler(), false);
 
-function delay(milliseconds) {
+function delay(milliseconds: number): Promise<void> {
     return new Promise(resolve => { setTimeout(resolve, milliseconds); });
 }
 
-function flip(group, duration) {
+function flip(group: THREE.Group, duration: number): void {
     new Tween(group.position)
         .to({ y: group.position.y + 10 }, duration)
         .easing(Easing.Quadratic.Out)
         .chain(
             new Tween(group.position)
-            .to({ y:  group.position.y + (group.children.length - 1) * 0.5 }, duration)
-            .easing(Easing.Quadratic.In))
+                .to({ y: group.position.y + (group.children.length - 1) * 0.5 }, duration)
+                .easing(Easing.Quadratic.In))
         .start();
 }
 
-async function solveAnimation(id) {
+async function solveAnimation(id: number): Promise<void> {
     while (group.children.length) { window.scene.attach(group.children[0]); }
     group.rotation.z = 0;
     group.position.y = 0;
 
-    const object = window.scene.getObjectById(id);
+    const object = window.scene.getObjectById(id) as THREE.Object3D;
     let y = object.position.y
     group.position.y = y;
 
@@ -403,7 +404,7 @@ async function solveAnimation(id) {
 // it becomes [16, 15, 17, 18] and now you need to flip at 15 to place it at beggining
 
 // max crepe is starting at the highest value and then decreases. also the end index k is incrementing by 1 in order to get the wanted position of the crepe
-async function solve(max, k) {
+async function solve(max: number, k: number): Promise<void> {
     solving = true
     let i = 0
     // I am looking for the biggest crepe's position (max)
@@ -431,7 +432,7 @@ async function solve(max, k) {
         }
     }
     // when i = 0, it means that the crepe that we are looking for is at the top of the pile
-    if (i === 0) { 
+    if (i === 0) {
         if (k === table.length - 1) { // means that no more crepe to sort so the game is over!
             // black side version you need to flip it
             if (version === 1 && table[0].side === 0) {
@@ -482,7 +483,7 @@ async function solve(max, k) {
         }
 
         await solveAnimation(max)
-        
+
         // swap all colors till i + 1
         if (version === 1) {
             for (let j = 0; j < i + 1; j++) {
@@ -505,7 +506,7 @@ async function solve(max, k) {
             table[table.length - 1 - j - k] = tmp
             // swap all sides
             table[j].side = (table[j].side === 0) ? 1 : 0
-            if (j!==table.length - 1 - j - k) { // if it's not the same crepe
+            if (j !== table.length - 1 - j - k) { // if it's not the same crepe
                 table[table.length - 1 - j - k].side = (table[table.length - 1 - j - k].side === 0) ? 1 : 0
             }
         }
@@ -527,18 +528,21 @@ function runRecursiveSolve() {
 
 function animate() {
     camera.updateMatrixWorld();
-    controls.update(); update()
+    controls.update();
+    // Advance all active tweens each frame
+    tweenUpdate();
     light.position.copy(camera.position);
     renderer.render(window.scene, camera);
     requestAnimationFrame(animate);
-        document.getElementById('flip-count').innerHTML = `Nombre de retournements: ${number_of_flips}`    
-
-    
+    const flipCountEl = document.getElementById('flip-count') as HTMLElement | null;
+    if (flipCountEl) flipCountEl.textContent = `Nombre de retournements: ${number_of_flips}`;
 }
 
 function showWin() {
-  document.getElementById('screenWin').style.display = 'flex';
-  restartCrepes()
+    const screenWin = document.getElementById('screenWin') as HTMLElement;
+    screenWin.style.display = 'flex';
+
+    restartCrepes()
 }
 
 document.getElementById('closescreenWin').addEventListener('click', () => {
@@ -553,13 +557,13 @@ function alertWon() {
     showWin()
 }
 
-const helpModal = document.getElementById('helpModal');
-const closeHelpModal = document.getElementById('closeHelpModal');
+const helpModal = document.getElementById('helpModal') as HTMLElement;
+const closeHelpModal = document.getElementById('closeHelpModal') as HTMLElement;
 function showHelpModal() {
-  helpModal.style.display = 'flex';
+    helpModal.style.display = 'flex';
 }
 
 // Function to Hide the Help Modal
-closeHelpModal.addEventListener('click',() => {
-  helpModal.style.display = 'none';
+closeHelpModal.addEventListener('click', () => {
+    helpModal.style.display = 'none';
 })

@@ -1,29 +1,31 @@
-<!DOCTYPE html> 
-<html lang='en'> 
-<head> 
-    <meta charset='UTF-8'> 
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'> 
-    <link rel='stylesheet' href='./framework/css/style.css'>
-    <link rel='stylesheet' href='./framework/css/BannerStyle.css'>
-    <link rel='stylesheet' href="./framework/css/ModalStyle.css">
-    <script src='./main.js' type='module'></script> 
-    <script src='./framework/js/framework.js' type='module'></script> 
-    <script src='./framework/js/createScene.js' type='module'></script> 
-    <script src='./framework/js/table.js' type='module'></script> 
-    <script src='./framework/js/CTABanner.js' type='module'></script>  
-    <title>Jeu du crêpier psychorigide</title> 
-</head> 
-<body> 
-    <div id="actions_group" class="actions-wrapper">
-        <div id="flip-count" class="timer">Nombre de retournements: 0</div>
-        <div id="safeTimerDisplay" class="timer"> Chrono : 00:00 </div>
-        <div id="version" class="timer">Version 0</div>
-    </div>
-    <canvas id="canvas" class="canvas"></canvas>
+<!DOCTYPE html>
+<html lang='en'>
 
-    <div id="screenWin" class="screen-win" role="dialog" aria-modal="true" aria-labelledby="screenWinTitle">
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <link rel='stylesheet' href='./framework/css/style.css'>
+  <link rel='stylesheet' href='./framework/css/BannerStyle.css'>
+  <link rel='stylesheet' href="./framework/css/ModalStyle.css">
+  <script src='./main.ts' type='module'></script>
+  <script src='./framework/js/framework.js' type='module'></script>
+  <script src='./framework/js/createScene.js' type='module'></script>
+  <script src='./framework/js/table.js' type='module'></script>
+  <script src='./framework/js/CTABanner.js' type='module'></script>
+  <title>Jeu du crêpier psychorigide</title>
+</head>
+
+<body>
+  <div id="actions_group" class="actions-wrapper">
+    <div id="flip-count" class="timer">Nombre de retournements: 0</div>
+    <div id="safeTimerDisplay" class="timer"> Chrono : 00:00 </div>
+    <div id="version" class="timer">Version 0</div>
+  </div>
+  <canvas id="canvas" class="canvas"></canvas>
+
+  <div id="screenWin" class="screen-win" role="dialog" aria-modal="true" aria-labelledby="screenWinTitle">
     <div class="modal-container">
-      
+
       <!-- Modal Header -->
       <div class="modal-header">
         <h2 id="screenWinTitle">Fin de la partie</h2>
@@ -35,15 +37,15 @@
       <!-- Modal Body -->
       <div class="modal-body">
         <p id="reussite" class="modal-text">
-            Vous avez réussi!
+          Vous avez réussi!
         </p>
       </div>
     </div>
-    </div>
+  </div>
 
-    <div id="helpModal" class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle"> 
+  <div id="helpModal" class="help-modal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
     <div class="modal-container">
-      
+
       <!-- Modal Header -->
       <div class="modal-header">
         <h2 id="helpModalTitle">Comment jouer ?</h2>
@@ -51,19 +53,23 @@
           <i class="fas-fa-times-fa-lg">Fermer</i>
         </button>
       </div>
-  
+
       <!-- Modal Body -->
       <div class="modal-body scrollable">
         <p class="modal-text">
           Bienvenue dans le <strong>Jeu du crêpier psychorigide</strong> ! C'est un jeu en solo qui fonctionne ainsi :
         </p>
         <p class="modal-text">
-          Vous pouvez retourner des piles de crêpes : en double-cliquant sur une crêpe, la pile de crêpes au-dessus d'elle se retourne et se retrouve à l'envers.Vous pouvez effectuer un zoom avant/arrière et retourner la pile d'avant en arrière. En appuyant sur Maj et le bouton gauche de la souris, il est possible de déplacer la pile de crêpes.
+          Vous pouvez retourner des piles de crêpes : en double-cliquant sur une crêpe, la pile de crêpes au-dessus
+          d'elle se retourne et se retrouve à l'envers.Vous pouvez effectuer un zoom avant/arrière et retourner la pile
+          d'avant en arrière. En appuyant sur Maj et le bouton gauche de la souris, il est possible de déplacer la pile
+          de crêpes.
         </p>
       </div>
     </div>
   </div>
 
   </div>
-</body> 
+</body>
+
 </html>
