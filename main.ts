@@ -1,8 +1,3 @@
-//In order to work with this project you need some reasoning skills, a good understanding of javascript and the basics of Three.js and Vue.js
-//Flip animation taken from and modified for my needs
-//https://codepen.io/boytchev/pen/wvQRERM?editors=1010
-
-
 // for 3D use of the framework
 import Framework from './framework/js/framework.js';
 
