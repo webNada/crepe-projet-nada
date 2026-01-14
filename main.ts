@@ -24,7 +24,7 @@ const modal1 = fw.getPermanentModal({
     theme: "light", // or "dark" 
     id: "gameSettingsModal",
 });
-//rajouer un bouton dans le modal avec la méthode addButton
+//rajouter un bouton dans le modal avec la méthode addButton
 modal1.AddButtonToModal("Recommencer", () => restartCrepes());
 modal1.AddButtonToModal("Mélanger", () => randomCrepe());
 modal1.AddButtonToModal("Résoudre", () => runRecursiveSolve());
